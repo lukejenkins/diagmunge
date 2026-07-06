@@ -1,0 +1,30 @@
+[project]
+name = "diagmunge"
+version = "0.1.0"
+description = "Shared Qualcomm DIAG transport core (+ format-munge tools)"
+license = "Apache-2.0"
+requires-python = ">=3.11"
+# Core transport (TCP / UDP / raw-fd) is stdlib-only — mirrors diaggrok.
+dependencies = []
+
+[project.optional-dependencies]
+# The serial transport (DiagClient.from_serial) imports pyserial lazily.
+serial = ["pyserial"]
+# The decode helper (DiagClient.observe_codes) imports diaggrok.frame lazily.
+# Inward-only dependency edge: diagmunge -> diaggrok, never the reverse.
+decode = ["diaggrok"]
+# The munge CLI tools decode HDLC/DLF via diaggrok (hard functional dep, imported
+# at module top level — but only when a munge tool is invoked, so bare
+# `import diagmunge` stays diaggrok-free).
+munge = ["diaggrok"]
+
+[project.scripts]
+diagmunge-hdlc-to-dlf = "diagmunge.munge.hdlc_to_dlf:main"
+diagmunge-capture-dlf = "diagmunge.munge.capture_dlf_from_diag:main"
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
