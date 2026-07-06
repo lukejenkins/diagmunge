@@ -35,6 +35,17 @@ Console entry points `diagmunge-hdlc-to-dlf` and `diagmunge-capture-dlf`
 are declared for installed use. The munge tools decode via `diaggrok`
 (the `munge` extra); a bare `import diagmunge` never pulls it in.
 
+## Installation
+
+Neither `diagmunge` nor `diaggrok` is on PyPI yet — install straight
+from GitHub:
+
+```bash
+pip install "diagmunge @ git+https://github.com/lukejenkins/diagmunge@main"
+# with extras:
+pip install "diagmunge[munge] @ git+https://github.com/lukejenkins/diagmunge@main"
+```
+
 ## Dependencies
 
 The core transport (TCP / UDP / raw-fd) is **stdlib-only**. Optional
@@ -47,7 +58,10 @@ extras cover the lazy integrations:
 | `diagmunge[munge]` | `diaggrok` | the `diagmunge.munge` CLI tools |
 
 `import diagmunge` never requires any of them — all are imported lazily
-at their call sites.
+at their call sites. Because `diaggrok` is not on PyPI yet, the `decode`
+and `munge` extras resolve it via a git+https direct URL
+(`git+https://github.com/lukejenkins/diaggrok@main`) until further
+notice.
 
 ## Constellation position
 

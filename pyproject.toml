@@ -12,11 +12,15 @@ dependencies = []
 serial = ["pyserial"]
 # The decode helper (DiagClient.observe_codes) imports diaggrok.frame lazily.
 # Inward-only dependency edge: diagmunge -> diaggrok, never the reverse.
-decode = ["diaggrok"]
+# diaggrok is not on PyPI (yet) — resolve via a PEP 508 direct git+https URL
+# until it is published there, then revert these to the bare name. Direct-URL
+# deps also mean this package itself cannot be uploaded to PyPI as-is; that is
+# fine while both install straight from GitHub.
+decode = ["diaggrok @ git+https://github.com/lukejenkins/diaggrok@main"]
 # The munge CLI tools decode HDLC/DLF via diaggrok (hard functional dep, imported
 # at module top level — but only when a munge tool is invoked, so bare
 # `import diagmunge` stays diaggrok-free).
-munge = ["diaggrok"]
+munge = ["diaggrok @ git+https://github.com/lukejenkins/diaggrok@main"]
 
 [project.scripts]
 diagmunge-hdlc-to-dlf = "diagmunge.munge.hdlc_to_dlf:main"
