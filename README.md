@@ -1,11 +1,13 @@
 # diagmunge
 
+> Part of the **[cellular `diag*` toolkit](https://github.com/lukejenkins/cellular#the-diag-toolkit)** — start there for how the capture/decode pieces fit together.
+
 Shared **Qualcomm DIAG transport core + offline format-munge tools** — a
 permissively-licensed (Apache-2.0) way to arm the DIAG log mask, pump raw
 HDLC frames over serial, raw-fd, TCP, or UDP, and munge DIAG capture
 formats (HDLC ↔ DLF ↔ JSONL) offline. It is the transport foundation
-shared by the capture/daemon siblings in this constellation, and exists
-as a first-party, non-GPL alternative to existing DIAG client tooling.
+shared by the capture/daemon siblings in this constellation, and stands
+on its own as a DIAG transport core you can build on.
 
 ## Public API
 
