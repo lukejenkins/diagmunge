@@ -1,4 +1,4 @@
-diagmunge — shared Qualcomm DIAG transport core (+ format-munge tools)
+diagmunge: shared Qualcomm DIAG transport core (+ format-munge tools)
 Copyright 2026 Luke Jenkins
 
 This product includes software developed by Luke Jenkins
@@ -15,14 +15,14 @@ No third-party code is incorporated into diagmunge. The DIAG transport
 core (DiagClient, its serial/raw-fd/TCP/UDP transports, the HDLC framing
 and CRC-16/MCRF4XX implementation, and the DGE1 datagram helpers) is
 first-party: it arms the Qualcomm DIAG log mask itself and pumps raw
-HDLC. It does NOT import, link, or shell out to any GPL/LGPL decoder
-(QCSuper, SCAT, osmo-qcdiag) or to pycrate — that permissive posture is
-the reason diagmunge exists as an alternative to those tools.
+HDLC. It does not import, link, or shell out to other DIAG tooling
+(QCSuper, SCAT, osmo-qcdiag) or to pycrate, so none of their license
+terms attach; the Apache-2.0 grant above covers the whole of diagmunge.
 
 Optional integrations are lazy and never required to import diagmunge:
-  * pyserial (BSD) — imported inside DiagClient.from_serial(); the
+  * pyserial (BSD): imported inside DiagClient.from_serial(); the
     serial transport only. Declared as the `serial` extra.
-  * diaggrok (Apache-2.0, sibling repo) — imported inside
+  * diaggrok (Apache-2.0, sibling repo): imported inside
     DiagClient.observe_codes() for the decode helper only. Declared as
     the `decode` extra. The dependency edge is inward-only
     (diagmunge -> diaggrok); diaggrok never depends on diagmunge.
