@@ -25,6 +25,7 @@ munge = ["diaggrok @ git+https://github.com/lukejenkins/diaggrok@main"]
 [project.scripts]
 diagmunge-hdlc-to-dlf = "diagmunge.munge.hdlc_to_dlf:main"
 diagmunge-capture-dlf = "diagmunge.munge.capture_dlf_from_diag:main"
+diagmunge-dlf-to-pcap = "diagmunge.munge.dlf_to_pcap:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]
