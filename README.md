@@ -2,12 +2,12 @@
 
 > Part of the **[cellular `diag*` toolkit](https://github.com/lukejenkins/cellular#the-diag-toolkit)**: start there for how the capture/decode pieces fit together.
 
-Shared **Qualcomm DIAG transport core + offline format-munge tools**: a
-permissively-licensed (Apache-2.0) way to arm the DIAG log mask, pump raw
-HDLC frames over serial, raw-fd, TCP, or UDP, and munge DIAG capture
-formats (HDLC ↔ DLF ↔ JSONL) offline. It is the transport foundation
-shared by the capture/daemon siblings in this constellation, and stands
-on its own as a DIAG transport core you can build on.
+Shared **Qualcomm DIAG transport core + offline format-munge tools**: arm
+the DIAG log mask, pump raw HDLC frames over serial, raw-fd, TCP, or UDP,
+and munge DIAG capture formats (HDLC ↔ DLF ↔ JSONL) offline. It is the
+transport foundation shared by the capture/daemon siblings in this
+constellation, and stands on its own as a DIAG transport core you can
+build on.
 
 ## Public API
 
@@ -33,6 +33,10 @@ Offline DIAG format converters, each a self-contained CLI:
 | `python -m diagmunge.munge.capture_dlf_from_diag` | subscribe to log codes on a live device, capture frames → DLF |
 | `python -m diagmunge.munge.dlf_to_pcap` | DIAG capture → Wireshark pcap: GSMTAP/LTE on UDP/4729, plus a sibling `.nr.pcap` (Exported-PDU/NR signalling) |
 | `diagmunge.munge.replay` (library) | offline DLF/HDLC replay core: `replay_to_jsonl(dispatch=…, code_filter=…)` with an injected dispatch |
+| `diagmunge.gsmtap` (library) | GSMTAP v2 encoder for decoded LTE RRC/NAS records (`encode`), plus GSMTAP v3 parse/convert |
+| `diagmunge.exported_pdu` (library) | Wireshark Exported-PDU framing for NR RRC/NAS (pcap link type 252) |
+| `diagmunge.pcap` (library) | stdlib-only pcap/pcapng writer and a synthetic Eth/IPv4/UDP frame builder |
+| `diagmunge.gsmtap_sink` (library) | `GsmtapUdpSink`: send GSMTAP frames live over UDP to a listening Wireshark |
 
 Console entry points `diagmunge-hdlc-to-dlf`, `diagmunge-capture-dlf`, and
 `diagmunge-dlf-to-pcap` are declared for installed use. The munge tools
@@ -46,8 +50,9 @@ a Wireshark-readable pcap. LTE RRC/NAS records become GSMTAP frames on
 UDP/4729 in `<capture>.diaggrok.pcap`; NR RRC/NAS records become
 Exported-PDU blocks in a sibling `<capture>.diaggrok.nr.pcap` (a separate
 file because NR uses a different pcap link type). Frame timestamps come
-from the capture's GNSS ts64→UTC calibration when present, with a
-synthetic monotonic fallback.
+from the capture's GNSS ts64→UTC calibration when the installed `diaggrok`
+provides `diaggrok.ts64_cal` and the capture carries GNSS fixes. Otherwise
+they use a synthetic monotonic clock, and the tool says so on stderr.
 
 ```bash
 diagmunge-dlf-to-pcap capture.dlf
@@ -109,3 +114,12 @@ The semantic/foreign-format converters belong here too; that is the
 *munge* in diagmunge. GSMTAP pcap output has now landed (`dlf_to_pcap`,
 above); the remaining converters (WiGLE, Kismet, RINEX) are still to
 follow.
+
+## License
+
+Apache License 2.0. See [`LICENSE`](LICENSE) and [`NOTICE`](NOTICE).
+
+The measured QSH-trace masksets
+([`src/diagmunge/data/`](src/diagmunge/data/QSH_MASKSET_MEASURED.md)) come with
+**no warranty**. Read their document, which also says how they were measured,
+before arming one.

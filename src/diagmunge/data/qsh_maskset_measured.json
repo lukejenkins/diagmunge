@@ -1,0 +1,39 @@
+{
+ "license": "Apache-2.0",
+ "warranty": "NONE. Provided AS IS. See QSH_MASKSET_MEASURED.md before arming.",
+ "description": "QSH-trace (0x9001) masksets measured by trial and error, one profile per unit. Each profile lists the (ssid, level) pairs whose 0x9D frames actually arrived on that unit. The 'union' profile is not stored: the loader computes it as the per-SSID OR of every profile in this file.",
+ "method": "qsh_maskset_discover --port (15 s per SSID window, each window armed alone at level 0xFFFF), plus every (ssid, sub_stream) seen in a 20 s capture armed with SSIDs 1..110 at 0xFFFF",
+ "default": "union",
+ "profiles": {
+  "rm500q-ae": {
+   "model": "RM500Q-AE",
+   "unit": "Quectel RM500Q-AE",
+   "chipset": "SDX55",
+   "pairs": [[9, 7], [42, 1], [52, 4], [54, 3], [61, 1], [73, 7], [76, 73], [80, 1], [83, 43], [84, 14], [87, 3], [89, 3], [97, 1], [98, 8], [99, 3]]
+  },
+  "t99w175": {
+   "model": "T99W175",
+   "unit": "Foxconn T99W175",
+   "chipset": "SDX55",
+   "pairs": [[9, 7], [11, 2], [13, 1], [42, 1], [52, 6], [54, 3], [61, 3], [73, 5], [76, 25], [80, 1], [87, 3], [89, 3], [98, 8], [101, 2], [109, 2]]
+  },
+  "rm520n-gl": {
+   "model": "RM520N-GL",
+   "unit": "Quectel RM520N-GL",
+   "chipset": "SDX62",
+   "pairs": [[9, 7], [11, 2], [13, 1], [42, 1], [52, 4], [54, 3], [61, 1], [73, 12], [76, 73], [80, 1], [83, 1], [89, 1], [98, 8], [107, 2], [108, 1], [113, 3]]
+  },
+  "t99w640-retail": {
+   "model": "T99W640",
+   "unit": "Foxconn T99W640 retail unit",
+   "chipset": "SDX72",
+   "pairs": [[6, 272], [18, 2], [61, 1], [76, 1], [78, 2], [87, 3], [89, 1], [97, 1], [107, 3], [115, 2], [119, 2]]
+  },
+  "t99w640-engineering-sample": {
+   "model": "T99W640",
+   "unit": "Foxconn T99W640 engineering-sample unit",
+   "chipset": "SDX72",
+   "pairs": [[6, 336], [9, 39], [11, 2], [13, 1], [42, 1], [52, 4], [54, 7], [61, 1], [73, 111], [76, 73], [78, 2], [80, 1], [87, 1], [89, 1], [98, 8], [107, 2], [108, 1], [109, 2], [113, 3], [122, 3]]
+  }
+ }
+}

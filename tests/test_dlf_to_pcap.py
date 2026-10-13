@@ -5,6 +5,7 @@ synthetic flat-DLF capture, drives the code, re-reads the pcap in pure Python.
 """
 from __future__ import annotations
 
+import os
 import shutil
 import struct
 import subprocess
@@ -12,9 +13,9 @@ from pathlib import Path
 
 import pytest
 
-from diaggrok import gsmtap
+from diagmunge import gsmtap
 from diaggrok.dlf import pack_records
-from diaggrok.pcap import PcapWriter
+from diagmunge.pcap import PcapWriter
 from diaggrok.parsers.diag_0xb0c0 import (
     LTE_RRC_V20_CHANNEL_BCCH_DL_SCH,
     LTE_RRC_V20_CHANNEL_OFFSET,
@@ -141,6 +142,28 @@ def test_import_diagmunge_stays_diaggrok_free():
         del _sys.modules[m]
     importlib.import_module("diagmunge")
     assert "diagmunge.munge.dlf_to_pcap" not in _sys.modules
+    # The output framers import diaggrok.codes at top level, so the same rule
+    # holds for them: `import diagmunge` must not load them either.
+    for m in ("gsmtap", "gsmtap_sink", "exported_pdu"):
+        assert f"diagmunge.{m}" not in _sys.modules
+
+
+def test_runs_against_a_diaggrok_without_ts64_cal(tmp_path, monkeypatch, capsys):
+    # The public diaggrok carve does not ship ts64_cal. dlf_to_pcap must still
+    # import and convert there, on the synthetic monotonic clock, and say so.
+    import importlib
+    import sys as _sys
+    monkeypatch.setitem(_sys.modules, "diaggrok.ts64_cal", None)
+    monkeypatch.delitem(_sys.modules, "diagmunge.munge.dlf_to_pcap", raising=False)
+    bare = importlib.import_module("diagmunge.munge.dlf_to_pcap")
+    cap = _write_capture(tmp_path, [
+        (LOG_LTE_RRC_OTA_MSG, 1000, _make_v20_b0c0(
+            LTE_RRC_V20_CHANNEL_UL_CCCH, b"\xaa\xbb")),
+    ])
+    out = tmp_path / "o.pcap"
+    assert bare.main([str(cap), "-o", str(out)]) == 0
+    assert len(list(_iter_pcap_gsmtap(out.read_bytes()))) == 1
+    assert "synthetic" in capsys.readouterr().err
 
 
 @pytest.mark.skipif(shutil.which("tshark") is None, reason="tshark not on PATH")
@@ -151,7 +174,12 @@ def test_tshark_dissects_lte_rrc(tmp_path):
     ])
     out = tmp_path / "o.pcap"
     assert dlf_to_pcap.main([str(cap), "-o", str(out)]) == 0
+    # An EMPTY Wireshark profile, not the host's: GSMTAP rides
+    # UDP/4729, and a user Decode-As entry can unbind it.
+    profile = tmp_path / "ws-empty-profile"
+    profile.mkdir()
     res = subprocess.run(
         ["tshark", "-r", str(out), "-T", "fields", "-e", "_ws.col.Protocol"],
-        capture_output=True, text=True)
+        capture_output=True, text=True,
+        env={**os.environ, "WIRESHARK_CONFIG_DIR": str(profile)})
     assert "LTE RRC" in res.stdout or "lte" in res.stdout.lower(), res.stdout + res.stderr

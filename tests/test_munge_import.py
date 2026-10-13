@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Smoke tests for the diagmunge.munge subpackage (#N)."""
+"""Smoke tests for the diagmunge.munge subpackage."""
 import importlib
 import sys
 

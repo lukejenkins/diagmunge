@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Smoke tests for the diagmunge package boundary (#N).
+"""Smoke tests for the diagmunge package boundary.
 
 These prove the relocated transport core stands alone as a package: the flat
 top-level API is present, and `import diagmunge` needs neither pyserial nor

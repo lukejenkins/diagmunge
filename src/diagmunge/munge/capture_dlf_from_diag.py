@@ -5,8 +5,8 @@
 
 Subscribes to a set of log codes on the modem's DIAG port and writes
 every received log frame into DLF format (u16 rec_len + u16 log_code +
-u64 ts64 + payload) — the same format `tools/decode_dlf.py` and the
-diaggrok integration tests consume.
+u64 ts64 + payload) — the same format diaggrok's DLF reader and its
+integration tests consume.
 
 Reuses `diagmunge` (the shared DIAG transport) for HDLC framing and log-mask setup. The
 inner DIAG frame layout (`inner_len u16, log_type u16, log_time u64,
@@ -15,7 +15,7 @@ script writes the inner segment verbatim per frame.
 
 Example:
 
-    .venv/bin/python tools/capture_dlf_from_diag.py \\
+    python -m diagmunge.munge.capture_dlf_from_diag \\
         --diag-port /dev/serial/by-path/pci-0000:00:14.0-usb-0:3.3:1.0-port0 \\
         --codes 0x1837,0x1384,0x1476,0x1477,0x1478,0x1480 \\
         --duration 30 \\
@@ -32,7 +32,7 @@ from struct import unpack_from
 from diagmunge import DiagClient, DIAG_LOG_F
 
 # Vendor SPC bodies to try, in order, when --spc auto is requested. The EG25/EC25
-# MDM9607 family gates LOG_CONFIG behind an SPC unlock (#N).
+# MDM9607 family gates LOG_CONFIG behind an SPC unlock.
 _SPC_AUTO = ["000000", "0000"]
 
 
@@ -56,7 +56,7 @@ def main() -> int:
                     help='Send an SPC unlock (opcode 0x46) before subscribing. '
                          'Use a literal 6-char code (e.g. 000000), or "auto" to '
                          'try known vendor SPCs. Needed on EG25/EC25-class modems '
-                         'that gate LOG_CONFIG behind SPC (#N).')
+                         'that gate LOG_CONFIG behind SPC.')
     args = ap.parse_args()
 
     codes = parse_codes(args.codes)

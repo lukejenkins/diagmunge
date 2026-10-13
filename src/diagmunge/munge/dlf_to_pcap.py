@@ -23,14 +23,25 @@ import sys
 from pathlib import Path
 
 import diaggrok
-from diaggrok import exported_pdu, gsmtap
+from diagmunge import exported_pdu, gsmtap
 from diaggrok.dlf import iter_records, UnsupportedFormatError, UnknownFormatError
-from diaggrok.pcap import PcapWriter, udp4_frame
-from diaggrok.ts64_cal import build_calibrator
+from diagmunge.pcap import PcapWriter, udp4_frame
+
+# GNSS ts64->UTC calibration is OPTIONAL: a diaggrok without ts64_cal (the public
+# carve does not ship it) still converts, on the synthetic monotonic clock that
+# --synthetic-time selects explicitly.
+try:
+    from diaggrok.ts64_cal import build_calibrator
+except ImportError:
+    build_calibrator = None
 
 _FRAME_STEP_S = 0.001  # 1 ms between successive synthetic-timestamp frames
 _COMPRESSION_SUFFIXES = (".gz", ".bz2", ".xz", ".zst")
-_CAPTURE_SUFFIXES = (".dlf", ".hdlc", ".bin", ".qmdl", ".qmdl2")
+# ``.pcapng`` is the pcap-native DIAG capture container; ``iter_records`` refuses
+# to deframe it, so a pcap capture is routed through diaggrok's DGE1-over-UDP
+# reader (:func:`_iter_pcap_container_records`) instead. Listed here so
+# ``_default_output`` strips the suffix for the output name.
+_CAPTURE_SUFFIXES = (".dlf", ".hdlc", ".bin", ".qmdl", ".qmdl2", ".pcapng")
 
 
 class PcapSink:
@@ -93,14 +104,37 @@ def _frame_ts(ts64, *, calibrator, base_epoch, counter):
 
 def diag_to_pcap(data, writer, wanted, base_epoch=0.0, nr_writer=None,
                  calibrator=None):
-    """Decode ``data`` and write GSMTAP (LTE) + Exported-PDU (NR) frames.
+    """Decode ``data`` bytes and write GSMTAP (LTE) + Exported-PDU (NR) frames.
+
+    Thin bytes-in wrapper over :func:`diag_to_pcap_records`: it feeds
+    ``iter_records(data)`` — diaggrok's dependency-free flat-DLF / HDLC / qmdl2
+    reader — so every caller that hands pre-read bytes is byte-for-byte unchanged.
+    A pcap container cannot be routed through here (``iter_records`` recognises it
+    but raises ``UnsupportedFormatError``); ``main`` sends a pcap capture through
+    :func:`iter_capture_records_for_pcap` into :func:`diag_to_pcap_records`.
+
+    Returns a stats dict: eligible/parse_failed/written/encode_skipped/
+    nr_written/nr_encode_skipped plus by_sub/by_nr breakdowns.
+    """
+    return diag_to_pcap_records(iter_records(data), writer, wanted,
+                                base_epoch=base_epoch, nr_writer=nr_writer,
+                                calibrator=calibrator)
+
+
+def diag_to_pcap_records(records, writer, wanted, base_epoch=0.0, nr_writer=None,
+                         calibrator=None):
+    """Encode a ``(log_code, ts64, payload)`` record stream to GSMTAP/Exported-PDU.
+
+    The record-consuming core shared by the bytes path (:func:`diag_to_pcap`) and
+    the pcap path (``main`` → :func:`iter_capture_records_for_pcap`) — reader-
+    agnostic, so a pcap container's records encode identically to a flat-DLF's.
 
     Returns a stats dict: eligible/parse_failed/written/encode_skipped/
     nr_written/nr_encode_skipped plus by_sub/by_nr breakdowns.
     """
     sink = PcapSink(writer, nr_writer=nr_writer)
     stats = {"eligible": 0, "parse_failed": 0}
-    for log_code, ts64, payload in iter_records(data):
+    for log_code, ts64, payload in records:
         if log_code not in wanted:
             continue
         stats["eligible"] += 1
@@ -135,6 +169,56 @@ def _read_capture(path: Path) -> bytes:
         with open(path, "rb") as f:
             return zstandard.ZstdDecompressor().stream_reader(f).read()
     return path.read_bytes()
+
+
+def _iter_pcap_container_records(cap: Path):
+    """Yield ``(log_code, ts64, payload)`` from a pcap/pcapng CONTAINER.
+
+    ``diaggrok.dlf.iter_records`` recognises a pcap container but raises
+    ``UnsupportedFormatError`` — the dependency-free library reader does not take
+    the DGE1-over-UDP carve. diaggrok's pcap-native
+    :func:`diaggrok.diag_source.open_diag_source` does: it deframes the
+    DGE1-over-UDP DIAG stream in a ``.pcap`` / ``.pcapng`` (optionally ``.zst``)
+    container, streaming with constant memory, and yields a :class:`Record` whose
+    ``log_time`` is the same ts64 ``iter_records`` reports (both come from
+    ``diaggrok.hdlc.iter_log_records_stream``), so the GSMTAP timestamp / GNSS
+    calibration semantics are preserved.
+
+    Scope (the diagmunge / diaggrok inward-only dependency boundary): this
+    fixes the FORMAT bug — a standalone
+    ``.pcapng[.zst]`` container now converts. It does NOT chain a multi-part
+    ``<stem>.<NN>.pcapng[.zst]`` *session*, because resolving one part into the
+    ordered part set needs the tools-side ``pcap_part_key`` /
+    ``resolve_capture_parts`` grammar, and diagmunge's only permitted cross-package
+    edge is to diaggrok. Session chaining belongs to the capture-corpus tooling
+    that owns the multi-part ``.NN.pcapng.zst`` layout, whereas this front-end
+    converts an individual capture container.
+    """
+    from diaggrok.diag_source import open_diag_source
+    for rec in open_diag_source(str(cap)):
+        yield rec.log_code, rec.log_time, rec.payload
+
+
+def iter_capture_records_for_pcap(cap: Path, data=None):
+    """Yield ``(log_code, ts64, payload)`` for ``cap`` — pcap-container-aware.
+
+    The record source ``main`` feeds the encoder. A **pcap** capture routes
+    through :func:`_iter_pcap_container_records` (diaggrok's DGE1-over-UDP reader);
+    a **non-pcap** capture (.dlf / .hdlc / .qmdl / .bin, any compression) is read
+    byte-for-byte as before via :func:`diaggrok.dlf.iter_records`.
+
+    ``data`` is ``cap``'s already-read bytes, passed by ``main`` so the pcap sniff
+    and a non-pcap decode reuse one read; when ``None`` the bytes are read here
+    (the test seam).
+    """
+    from diaggrok.dlf import _looks_like_pcap
+    cap = Path(cap)
+    if data is None:
+        data = _read_capture(cap)
+    if _looks_like_pcap(data):
+        yield from _iter_pcap_container_records(cap)
+    else:
+        yield from iter_records(data)
 
 
 def _default_output(path: Path) -> Path:
@@ -234,14 +318,30 @@ def main(argv=None) -> int:
     except OSError:
         base_epoch = 0.0
 
-    calibrator = None
-    if not args.synthetic_time:
-        calibrator = build_calibrator(iter_records(data))
+    # Route the record read through the pcap-container-aware source. A pcap
+    # capture is deframed via diaggrok's DGE1-over-UDP reader; a non-pcap capture
+    # keeps the exact ``iter_records(data)`` path. One factory so the GNSS
+    # calibration pass and the encode pass read the same record stream.
+    def _records():
+        return iter_capture_records_for_pcap(cap, data)
 
-    writer, nr_writer, files, nr_path = _open_outputs(out)
+    calibrator = None
     try:
-        stats = diag_to_pcap(data, writer, wanted, base_epoch=base_epoch,
-                             nr_writer=nr_writer, calibrator=calibrator)
+        if not args.synthetic_time:
+            if build_calibrator is None:
+                print("dlf_to_pcap: this diaggrok has no ts64_cal; frame "
+                      "timestamps are synthetic", file=sys.stderr)
+            else:
+                calibrator = build_calibrator(_records())
+
+        writer, nr_writer, files, nr_path = _open_outputs(out)
+    except (UnsupportedFormatError, UnknownFormatError) as exc:
+        print(f"dlf_to_pcap: cannot decode {cap}: {exc}", file=sys.stderr)
+        return 1
+    try:
+        stats = diag_to_pcap_records(_records(), writer, wanted,
+                                     base_epoch=base_epoch,
+                                     nr_writer=nr_writer, calibrator=calibrator)
     except (UnsupportedFormatError, UnknownFormatError) as exc:
         _finalize_outputs(files, nr_path, 0)
         print(f"dlf_to_pcap: cannot decode {cap}: {exc}", file=sys.stderr)

@@ -10,17 +10,22 @@ dependencies = []
 [project.optional-dependencies]
 # The serial transport (DiagClient.from_serial) imports pyserial lazily.
 serial = ["pyserial"]
+# The libusb transport (DiagClient.from_libusb) imports pyusb lazily —
+# for raw-USB-only DIAG modems (Inseego M3100 SDX65, Foxconn/T99W MHI variants)
+# that expose no ttyUSB/cdc-wdm node. Core stays stdlib-only when pyusb absent.
+libusb = ["pyusb"]
 # The decode helper (DiagClient.observe_codes) imports diaggrok.frame lazily.
 # Inward-only dependency edge: diagmunge -> diaggrok, never the reverse.
 # diaggrok is not on PyPI (yet) — resolve via a PEP 508 direct git+https URL
 # until it is published there, then revert these to the bare name. Direct-URL
 # deps also mean this package itself cannot be uploaded to PyPI as-is; that is
-# fine while both install straight from GitHub.
-decode = ["diaggrok @ git+https://github.com/lukejenkins/diaggrok@main"]
+# fine while both install straight from GitHub. Pinned to a diaggrok release
+# tag this package's suite was verified against; bump it with each re-verify.
+decode = ["diaggrok @ git+https://github.com/lukejenkins/diaggrok@v2026.10.12"]
 # The munge CLI tools decode HDLC/DLF via diaggrok (hard functional dep, imported
 # at module top level — but only when a munge tool is invoked, so bare
 # `import diagmunge` stays diaggrok-free).
-munge = ["diaggrok @ git+https://github.com/lukejenkins/diaggrok@main"]
+munge = ["diaggrok @ git+https://github.com/lukejenkins/diaggrok@v2026.10.12"]
 
 [project.scripts]
 diagmunge-hdlc-to-dlf = "diagmunge.munge.hdlc_to_dlf:main"
@@ -33,3 +38,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Measured QSH-trace masksets: NO WARRANTY (data/QSH_MASKSET_MEASURED.md).
+[tool.setuptools.package-data]
+diagmunge = ["data/*.json", "data/*.md"]

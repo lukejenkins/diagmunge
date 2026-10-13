@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2026 Luke Jenkins
-"""diagmunge — shared Qualcomm DIAG transport core (+ future format-munge tools).
+"""diagmunge — shared DIAG transport core (+ future format-munge tools).
 
 Flat top-level API: the DIAG transport (`DiagClient`, its five transports, the
 DGE1 datagram helpers, and the DIAG_* opcode constants) is re-exported here from
@@ -23,13 +23,17 @@ from .transport import (
     DIAG_VERNO_F,
     DiagClient,
     Dge1SeqTracker,
+    bad_cmd_hint,
     parse_dge1_header,
+    resync_frame_boundary,
 )
 
 __all__ = [
     "DiagClient",
     "Dge1SeqTracker",
     "parse_dge1_header",
+    "bad_cmd_hint",
+    "resync_frame_boundary",
     "DIAG_VERNO_F",
     "DIAG_BAD_CMD_F",
     "DIAG_LOG_F",

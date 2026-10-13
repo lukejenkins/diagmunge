@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Tests for the GNSS-free diagmunge replay core (#N)."""
+"""Tests for the GNSS-free diagmunge replay core."""
 import io
 import json
 import struct
